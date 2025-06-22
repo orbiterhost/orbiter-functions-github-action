@@ -1,0 +1,63 @@
+name: "Deploy Function to Orbiter"
+description: "Deploy and link Function to your Orbiter Site"
+branding:
+  icon: "upload-cloud"
+  color: "blue"
+inputs:
+  site-id:
+    description: "ID of the client site you want to link the function to, located in app.orbiter.host"
+    required: true
+  api-key:
+    description: "Orbiter API key"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Check if API key exists
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.api-key }}" ]; then
+          echo "🚨 ORBITER_API_KEY not found! Please follow these steps:"
+          echo ""
+          echo "1. Go to https://app.orbiter.host/api-keys"
+          echo "2. Generate a new API key"
+          echo "3. Go to https://github.com/${{ github.repository }}/settings/secrets/actions"
+          echo "4. Click 'New repository secret'"
+          echo "5. Name: ORBITER_API_KEY"
+          echo "6. Value: Your API key from step 2"
+          echo "7. Click 'Add secret'"
+          echo ""
+          echo "Once done, re-run this workflow."
+          exit 1
+        fi
+
+    - name: Check required inputs
+      shell: bash
+      run: |
+        if [ -z "${{ inputs.build-dir }}" ]; then
+          echo "🚨 build-dir input is required but was not provided"
+          exit 1
+        fi
+
+        if [ -z "${{ inputs.project-name }}" ]; then
+          echo "🚨 project-name input is required but was not provided"
+          exit 1
+        fi
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      shell: bash
+      run: bun install
+
+    - name: Deploy to Orbiter
+      shell: bash
+      env:
+        ORBITER_API_KEY: ${{ inputs.api-key }}
+        SOURCE: github-action
+      run: bunx orbiter-cli deploy-server -s ${{ inputs.project-name }} o- dist
+
